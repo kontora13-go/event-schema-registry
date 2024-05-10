@@ -1,0 +1,36 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+
+  "title": "domain.object.event.v1",
+  "description": "Описание схемы",
+
+  "definitions": {
+    "event_data": {},
+    "event_meta": {
+      "type": "object",
+      "properties": {
+        "trace_id":      { "type": "string" },
+        "event_id":      { "type": "string" },
+        "event_version": { "enum": [1] },
+        "event_name":    { "type": "string" },
+        "event_time":    { "type": "string" },
+        "producer":      { "type": "string" }
+      },
+      "required": [
+        "trace_id",
+        "event_id",
+        "event_version",
+        "event_name",
+        "event_time",
+        "producer"
+      ]
+    }
+  },
+
+  "type": "object",
+
+  "properties": {
+    "meta": { "$ref": "#/definitions/event_meta" },
+    "data": { "$ref": "#/definitions/event_data" }
+  }
+}

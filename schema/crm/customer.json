@@ -1,0 +1,1 @@
+{"$schema":"https://json-schema.org/draft/2020-12/schema","title":"","type":"object","definitions":null,"properties":[{"type":"integer"},{"type":"string"},{"type":"time"},{"type":"bool"},{"properties":{"email":{"type":"string"},"phone":{"type":"integer"}},"type":"object"}],"required":["id","name","birthday","is_blocked"]}
