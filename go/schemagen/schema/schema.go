@@ -17,14 +17,14 @@ const (
 )
 
 type Schema struct {
-	Schema      string         `json:"$schema"`
-	Id          string         `json:"$id,omitempty"`
-	Title       string         `json:"title"`
-	Description string         `json:"description,omitempty"`
-	Type        Type           `json:"type"`
-	Definitions map[string]any `json:"definitions"`
-	Properties  []*Property    `json:"properties"`
-	Required    []string       `json:"required"`
+	Schema      string             `json:"$schema"`
+	Id          string             `json:"$id,omitempty"`
+	Title       string             `json:"title"`
+	Description string             `json:"description,omitempty"`
+	Type        Type               `json:"type"`
+	Definitions map[string]*Schema `json:"definitions"`
+	Properties  []*Property        `json:"properties"`
+	Required    []string           `json:"required"`
 }
 
 func NewSchema() *Schema {

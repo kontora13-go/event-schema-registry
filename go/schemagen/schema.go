@@ -15,7 +15,7 @@ type schemaStruct struct {
 	Name   string
 	Path   string
 	Decl   *ast.GenDecl
-	Schema *schema.Schema
+	Schema *schema.Schema // Deprecation
 	Fields []*schemaField
 }
 

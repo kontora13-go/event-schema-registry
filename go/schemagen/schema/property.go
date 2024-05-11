@@ -7,6 +7,7 @@ type Property struct {
 	Description string
 	Type        Type
 	Required    bool
+	Ref         *Schema
 	Properties  []*Property
 }
 
@@ -128,4 +129,16 @@ func (p *Property) mappingObject() map[string]any {
 
 func (p *Property) AddProperty(prop *Property) {
 	p.Properties = append(p.Properties, prop)
+}
+
+/*
+ Ref
+*/
+
+func NewRefProperty(name string, required bool) *Property {
+	return &Property{
+		Name:     name,
+		Type:     TypeRef,
+		Required: required,
+	}
 }

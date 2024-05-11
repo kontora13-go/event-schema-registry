@@ -7,7 +7,10 @@ const (
 )
 
 // CustomerUpdatedV1 - обновлены данные покупателя в CRM-системе
-// schemagen: customer.updated.v1
+// schemagen:
+//
+//	#event: customer.updated.v1
+//	#description: обновлены данные покупателя
 type CustomerUpdatedV1 struct {
 	Id        int       `json:"id" schema:"id,required"`
 	Name      string    `json:"name" schema:"name,required"`

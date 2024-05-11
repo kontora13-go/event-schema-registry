@@ -3,7 +3,7 @@ package gen
 import (
 	"encoding/json"
 	"fmt"
-	"go/ast"
+	"github.com/kontora13-go/event-schema-registry/schemagen/schema"
 	"go/parser"
 	"go/token"
 	"log"
@@ -12,9 +12,12 @@ import (
 )
 
 type Gen struct {
-	SourceDir string
-	SourceExt string
-	DestDir   string
+	SourceDir     string
+	SourceExt     string
+	DestDir       string
+	MessageStruct *schemaStruct
+	GenStruct     []*schemaStruct
+	RefStruct     map[string]*schemaStruct
 }
 
 func NewGen(sourceDir string, destDir string) *Gen {
@@ -22,6 +25,8 @@ func NewGen(sourceDir string, destDir string) *Gen {
 		SourceDir: sourceDir,
 		SourceExt: ".go",
 		DestDir:   destDir,
+		GenStruct: make([]*schemaStruct, 0),
+		RefStruct: make(map[string]*schemaStruct),
 	}
 }
 
@@ -34,9 +39,54 @@ func (g *Gen) Generate() error {
 	}
 
 	for _, f := range files {
-		err = g.genSchemaFromFile(f)
+		err = g.parseStructFromFile(f)
 		if err != nil {
 			return err
+		}
+	}
+	if g.MessageStruct == nil {
+		return fmt.Errorf("не найдена структура event.message")
+	}
+
+	if len(g.GenStruct) == 0 {
+		return fmt.Errorf("не найдено ни одной структуры для генерации схем")
+	}
+
+	for _, curStruct := range g.GenStruct {
+		g.generateSchema(curStruct)
+	}
+
+	return nil
+}
+
+// parseStructFromFile - парсинг всех структур в файле.
+func (g *Gen) parseStructFromFile(source *SourceFile) error {
+	fset := token.NewFileSet()
+	node, err := parser.ParseFile(fset, g.SourceDir+"/"+source.SourcePath(), nil, parser.ParseComments)
+	if err != nil {
+		return err
+	}
+
+	pkgName := node.Name.Name
+
+	for _, gd := range node.Decls {
+		targetStruct, ok := parseStruct(gd, pkgName)
+		if !ok {
+			continue
+		}
+
+		if err = targetStruct.Parse(); err != nil {
+			return err
+		}
+
+		if targetStruct.Tags == nil {
+			g.RefStruct[fmt.Sprintf("%s.%s", targetStruct.Pkg, targetStruct.Name)] = targetStruct
+		} else if targetStruct.Tags.IsEventMessage {
+			g.MessageStruct = targetStruct
+		} else if targetStruct.Tags.Event != "" {
+			g.GenStruct = append(g.GenStruct, targetStruct)
+		} else {
+			g.RefStruct[fmt.Sprintf("%s.%s", targetStruct.Pkg, targetStruct.Name)] = targetStruct
 		}
 	}
 
@@ -50,50 +100,15 @@ func (g *Gen) genSchemaFromFile(source *SourceFile) error {
 		return err
 	}
 
+	pkgName := node.Name.Name
+
 	for _, gd := range node.Decls {
-		genD, ok := gd.(*ast.GenDecl)
+		targetStruct, ok := parseStruct(gd, pkgName)
 		if !ok {
-			fmt.Printf("SKIP %T is not *ast.GenDecl\n", gd)
 			continue
 		}
 
-		if genD.Doc == nil {
-			fmt.Printf("SKIP %s GenDecl.Doc is nil\n", source.SourcePath())
-			continue
-		}
-
-		var targetStruct *schemaStruct
-		for _, spec := range genD.Specs {
-			currType, ok := spec.(*ast.TypeSpec)
-			if !ok {
-				fmt.Printf("SKIP %T is not ast.TypeSpec\n", spec)
-				continue
-			}
-
-			currStruct, ok := currType.Type.(*ast.StructType)
-			if !ok {
-				fmt.Printf("SKIP %T is not ast.StructType\n", currStruct)
-				continue
-			}
-
-			targetStruct = newSchemaStruct()
-			targetStruct.Name = currType.Name.Name
-			targetStruct.Decl = genD
-		}
-
-		if targetStruct == nil {
-			continue
-		}
-
-		var needCodegen bool
-		for _, comment := range genD.Doc.List {
-			needCodegen = needCodegen || strings.HasPrefix(comment.Text, "// schemagen:")
-			if len(comment.Text) > 13 {
-				targetStruct.Name = strings.TrimSpace(strings.Replace(comment.Text, "// schemagen:", "", 1))
-			}
-		}
-
-		if !needCodegen {
+		if targetStruct.Tags == nil || targetStruct.Tags.Event == "" {
 			continue
 		}
 
@@ -118,4 +133,51 @@ func (g *Gen) genSchemaFromFile(source *SourceFile) error {
 	fmt.Println(node.Name.Name)
 
 	return nil
+}
+
+func (g *Gen) generateSchema(ss *schemaStruct) (*schema.Schema, bool) {
+	res := schema.NewSchema()
+	res.Title = ss.Tags.Event
+	res.Description = ss.Tags.Description
+
+	for _, sf := range ss.Fields {
+		if prop, ok := g.generateFields(sf); ok {
+			res.Properties = append(res.Properties, prop)
+		}
+	}
+
+	return res, true
+}
+
+func (g *Gen) generateFields(sf *schemaField) (*schema.Property, bool) {
+	// Check for integers
+	var prop *schema.Property
+	if strings.Contains(sf.Type, "int") {
+		prop = schema.NewIntegerProperty(sf.Name, sf.Required)
+	} else {
+		//Check for other types
+		switch sf.Type {
+		case "string":
+			prop = schema.NewStringProperty(sf.Name, sf.Required)
+		case "bool":
+			prop = schema.NewBoolProperty(sf.Name, sf.Required)
+		case "Time":
+			prop = schema.NewTimeProperty(sf.Name, sf.Required)
+		case "struct":
+			prop = schema.NewObjectProperty(sf.Name, sf.Required)
+			/*
+				for _, f := range sf.Fields {
+					if p, ok := parseField(f); ok {
+						prop.AddProperty(p)
+					}
+				}
+			*/
+		case "array":
+			return nil, false
+			//prop = schema.NewArrayProperty(sf.Name, sf.Required)
+		default:
+			log.Panicf("Field type %s not supported", sf.Type)
+		}
+	}
+	return prop, true
 }
