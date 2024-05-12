@@ -17,22 +17,22 @@ const (
 )
 
 type Schema struct {
-	Schema      string             `json:"$schema"`
-	Id          string             `json:"$id,omitempty"`
-	Title       string             `json:"title"`
-	Description string             `json:"description,omitempty"`
-	Type        Type               `json:"type"`
-	Definitions map[string]*Schema `json:"definitions"`
-	Properties  []*Property        `json:"properties"`
-	Required    []string           `json:"required"`
+	Schema      string               `json:"$schema,omitempty"`
+	Id          string               `json:"$id,omitempty"`
+	Title       string               `json:"title,omitempty"`
+	Description string               `json:"description,omitempty"`
+	Type        Type                 `json:"type"`
+	Definitions map[string]*Schema   `json:"definitions,omitempty"`
+	Properties  map[string]*Property `json:"properties"`
+	Required    []string             `json:"required"`
 }
 
 func NewSchema() *Schema {
 	return &Schema{
-		Schema:     DefaultSchema,
-		Type:       TypeObject,
-		Properties: make([]*Property, 0),
-		Required:   make([]string, 0),
+		Type:        TypeObject,
+		Definitions: make(map[string]*Schema),
+		Properties:  make(map[string]*Property),
+		Required:    make([]string, 0),
 	}
 }
 
@@ -50,9 +50,9 @@ func (s *Schema) _MarshalJSON() ([]byte, error) {
 	return json.Marshal(s)
 }
 
-func (s *Schema) AddProperty(p *Property) {
-	s.Properties = append(s.Properties, p)
-	if p.Required {
-		s.Required = append(s.Required, p.Name)
+func (s *Schema) AddProperty(prop *Property) {
+	s.Properties[prop.Name] = prop
+	if prop.Required {
+		s.Required = append(s.Required, prop.Name)
 	}
 }

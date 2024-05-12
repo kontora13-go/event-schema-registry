@@ -3,12 +3,13 @@ package schema
 import "encoding/json"
 
 type Property struct {
-	Name        string
-	Description string
-	Type        Type
-	Required    bool
-	Ref         *Schema
-	Properties  []*Property
+	Name        string               `json:"name,omitempty"`
+	Description string               `json:"description,omitempty"`
+	Type        Type                 `json:"type,omitempty"`
+	Required    bool                 `json:"-"`
+	RefId       string               `json:"$ref,omitempty"`
+	Ref         *Schema              `json:"-"`
+	Properties  map[string]*Property `json:"properties,omitempty"`
 }
 
 func (p *Property) MarshalJSON() ([]byte, error) {
@@ -18,6 +19,8 @@ func (p *Property) MarshalJSON() ([]byte, error) {
 		m = p.mappingObject()
 	case TypeString:
 		m = p.mappingString()
+	case TypeRef:
+		m = p.mappingRef()
 	default:
 		m = p.mappingDefault()
 	}
@@ -105,7 +108,7 @@ func NewObjectProperty(name string, required bool) *Property {
 		Name:       name,
 		Type:       TypeObject,
 		Required:   required,
-		Properties: make([]*Property, 0),
+		Properties: make(map[string]*Property),
 	}
 }
 
@@ -128,7 +131,7 @@ func (p *Property) mappingObject() map[string]any {
 }
 
 func (p *Property) AddProperty(prop *Property) {
-	p.Properties = append(p.Properties, prop)
+	p.Properties[p.Name] = prop
 }
 
 /*
@@ -141,4 +144,15 @@ func NewRefProperty(name string, required bool) *Property {
 		Type:     TypeRef,
 		Required: required,
 	}
+}
+
+func (p *Property) mappingRef() map[string]any {
+	m := map[string]any{
+		"$ref": p.RefId,
+	}
+	if p.Description != "" {
+		m["description"] = p.Description
+	}
+
+	return m
 }

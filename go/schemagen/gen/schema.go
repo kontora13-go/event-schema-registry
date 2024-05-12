@@ -14,6 +14,7 @@ var CommentPrefix = "schemagen:"
 type schemaStruct struct {
 	Pkg    string
 	Name   string
+	File   *SourceFile
 	Decl   *ast.GenDecl
 	Schema *schema.Schema
 	Fields []*schemaField
@@ -21,11 +22,12 @@ type schemaStruct struct {
 }
 
 type schemaField struct {
-	Name     string
-	Type     string
-	Required bool
-	Ref      string
-	Fields   []*schemaField
+	Name      string
+	Type      string
+	Required  bool
+	EventData bool
+	Ref       string
+	Fields    []*schemaField
 }
 
 type schemaTags struct {
@@ -36,9 +38,7 @@ type schemaTags struct {
 }
 
 func newSchemaStruct() *schemaStruct {
-	return &schemaStruct{
-		Schema: schema.NewSchema(),
-	}
+	return &schemaStruct{}
 }
 
 func newSchemaField() *schemaField {
@@ -154,8 +154,8 @@ func parseField(field *ast.Field) (*schemaField, bool) {
 			switch param {
 			case "required":
 				sf.Required = true
-			case "not_null":
-				//tableCol.NotNull = true
+			case "event_data":
+				sf.EventData = true
 			case "-":
 				success = false
 				break
@@ -224,8 +224,6 @@ func parseTags(comments []*ast.Comment) *schemaTags {
 			tag.Description = strings.TrimSpace(tagKeyValue[1])
 		case "is_event_message":
 			tag.IsEventMessage = true
-		case "is_ref":
-			tag.IsRef = true
 		}
 	}
 

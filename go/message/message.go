@@ -7,14 +7,11 @@ import "time"
 //
 //	#is_event_message
 type EventMessage struct {
-	Meta *EventMeta `json:"meta" schema:"meta,required,ref"`
-	Data any        `json:"data" schema:"data,required,ref"`
+	Meta *EventMeta `json:"meta" schema:"meta,required"`
+	Data any        `json:"data" schema:"data,required,event_data"`
 }
 
 // EventMeta - метеданные event-сообщения
-// schemagen:
-//
-//	#is_ref:event_meta
 type EventMeta struct {
 	TraceId      string    `json:"trace_id" schema:"trace_id,required"`
 	EventId      string    `json:"event_id" schema:"event_id,required"`

@@ -53,7 +53,10 @@ func (g *Gen) Generate() error {
 	}
 
 	for _, curStruct := range g.GenStruct {
-		g.generateSchema(curStruct)
+		err = g.saveMessageSchema(curStruct)
+		if err != nil {
+			return fmt.Errorf("не удалось сгенерировать схему: %v", err.Error())
+		}
 	}
 
 	return nil
@@ -79,15 +82,15 @@ func (g *Gen) parseStructFromFile(source *SourceFile) error {
 			return err
 		}
 
-		if targetStruct.Tags == nil {
-			g.RefStruct[fmt.Sprintf("%s.%s", targetStruct.Pkg, targetStruct.Name)] = targetStruct
-		} else if targetStruct.Tags.IsEventMessage {
-			g.MessageStruct = targetStruct
-		} else if targetStruct.Tags.Event != "" {
-			g.GenStruct = append(g.GenStruct, targetStruct)
-		} else {
-			g.RefStruct[fmt.Sprintf("%s.%s", targetStruct.Pkg, targetStruct.Name)] = targetStruct
+		if targetStruct.Tags != nil {
+			if targetStruct.Tags.IsEventMessage {
+				g.MessageStruct = targetStruct
+			} else if targetStruct.Tags.Event != "" {
+				targetStruct.File = source
+				g.GenStruct = append(g.GenStruct, targetStruct)
+			}
 		}
+		g.RefStruct[fmt.Sprintf("%s.%s", targetStruct.Pkg, targetStruct.Name)] = targetStruct
 	}
 
 	return nil
@@ -136,20 +139,27 @@ func (g *Gen) genSchemaFromFile(source *SourceFile) error {
 }
 
 func (g *Gen) generateSchema(ss *schemaStruct) (*schema.Schema, bool) {
-	res := schema.NewSchema()
-	res.Title = ss.Tags.Event
-	res.Description = ss.Tags.Description
+	if ss.Schema != nil {
+		return ss.Schema, true
+	}
+
+	ss.Schema = schema.NewSchema()
+	//ss.Schema.Id = ""
+	if ss.Tags != nil {
+		ss.Schema.Title = ss.Tags.Event
+		ss.Schema.Description = ss.Tags.Description
+	}
 
 	for _, sf := range ss.Fields {
-		if prop, ok := g.generateFields(sf); ok {
-			res.Properties = append(res.Properties, prop)
+		if prop, ok := g.generateProperty(ss, sf); ok {
+			ss.Schema.AddProperty(prop)
 		}
 	}
 
-	return res, true
+	return ss.Schema, true
 }
 
-func (g *Gen) generateFields(sf *schemaField) (*schema.Property, bool) {
+func (g *Gen) generateProperty(ss *schemaStruct, sf *schemaField) (*schema.Property, bool) {
 	// Check for integers
 	var prop *schema.Property
 	if strings.Contains(sf.Type, "int") {
@@ -165,19 +175,81 @@ func (g *Gen) generateFields(sf *schemaField) (*schema.Property, bool) {
 			prop = schema.NewTimeProperty(sf.Name, sf.Required)
 		case "struct":
 			prop = schema.NewObjectProperty(sf.Name, sf.Required)
-			/*
-				for _, f := range sf.Fields {
-					if p, ok := parseField(f); ok {
-						prop.AddProperty(p)
-					}
+			for _, f := range sf.Fields {
+				if p, ok := g.generateProperty(ss, f); ok {
+					prop.AddProperty(p)
 				}
-			*/
+			}
 		case "array":
 			return nil, false
 			//prop = schema.NewArrayProperty(sf.Name, sf.Required)
+		case "ref":
+			prop = schema.NewRefProperty(sf.Name, sf.Required)
+			prop.RefId = fmt.Sprintf("#/definitions/%s", sf.Name)
+			var ok bool
+			if prop.Ref, ok = g.findRefSchema(ss.Pkg, sf.Ref); !ok {
+				log.Panicf("не удалось сгенерировать схему для типа %v", sf.Ref)
+			}
 		default:
 			log.Panicf("Field type %s not supported", sf.Type)
 		}
 	}
 	return prop, true
+}
+
+func (g *Gen) findRefSchema(pkg string, ref string) (*schema.Schema, bool) {
+	if strings.Index(ref, ".") < 0 {
+		ref = fmt.Sprintf("%s.%s", pkg, ref)
+	}
+	ss, ok := g.RefStruct[ref]
+	if !ok {
+		return nil, false
+	}
+
+	return g.generateSchema(ss)
+}
+
+func (g *Gen) saveMessageSchema(ss *schemaStruct) error {
+	eventSchema := *g.MessageStruct
+	for _, v := range eventSchema.Fields {
+		if v.EventData {
+			v.Ref = fmt.Sprintf("%s.%s", ss.Pkg, ss.Name)
+			v.Type = schema.TypeRef
+			break
+		}
+	}
+
+	res, ok := g.generateSchema(&eventSchema)
+	if !ok {
+		return fmt.Errorf("не удалось сгенерировать схему")
+	}
+
+	res.Schema = schema.DefaultSchema
+
+	for _, v := range res.Properties {
+		if v.Type != schema.TypeRef {
+			continue
+		}
+
+		res.Definitions[v.Name] = v.Ref
+
+		if v.Name == "event_data" {
+			res.Title = v.Ref.Title
+			res.Description = v.Ref.Description
+		}
+	}
+
+	out, err := os.Create(g.DestDir + "/" + ss.File.DestPath(".json"))
+	if err != nil {
+		log.Fatal(err.Error())
+	}
+	defer out.Close()
+
+	j, err := json.Marshal(&res)
+	if err != nil {
+		log.Fatal(err.Error())
+	}
+	_, err = fmt.Fprintln(out, string(j))
+
+	return err
 }
