@@ -7,7 +7,15 @@ import (
 )
 
 func main() {
-	g := gen.NewGen(os.Args[0], os.Args[1])
+	source := os.Args[1]
+	target := os.Args[2]
+
+	log.Printf("%s -> %s", source, target)
+	if source == "" || target == "" {
+		return
+	}
+
+	g := gen.NewGen(source, target)
 
 	err := g.Generate()
 	if err != nil {
