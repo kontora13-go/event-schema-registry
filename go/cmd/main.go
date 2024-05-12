@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/kontora13-go/event-schema-registry/schemagen/gen"
+	"github.com/kontora13-go/event-schema-registry/gen"
 	"log"
 	"os"
 )

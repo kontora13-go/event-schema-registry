@@ -3,7 +3,7 @@ package gen
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/kontora13-go/event-schema-registry/schemagen/schema"
+	schema2 "github.com/kontora13-go/event-schema-registry/schema"
 	"go/parser"
 	"go/token"
 	"log"
@@ -100,12 +100,12 @@ func (g *Gen) parseStructFromFile(source *SourceFile) error {
 }
 
 // generateSchema - генерация схемы по результатам парсинга
-func (g *Gen) generateSchema(ss *schemaStruct) (*schema.Schema, bool) {
+func (g *Gen) generateSchema(ss *schemaStruct) (*schema2.Schema, bool) {
 	if ss.Schema != nil {
 		return ss.Schema, true
 	}
 
-	ss.Schema = schema.NewSchema()
+	ss.Schema = schema2.NewSchema()
 	//ss.Schema.Id = ""
 	if ss.Tags != nil {
 		ss.Schema.Title = ss.Tags.Event
@@ -122,22 +122,22 @@ func (g *Gen) generateSchema(ss *schemaStruct) (*schema.Schema, bool) {
 }
 
 // generateProperty - генерация поля схемы по результатам парсинга
-func (g *Gen) generateProperty(ss *schemaStruct, sf *schemaField) (*schema.Property, bool) {
+func (g *Gen) generateProperty(ss *schemaStruct, sf *schemaField) (*schema2.Property, bool) {
 	// Check for integers
-	var prop *schema.Property
+	var prop *schema2.Property
 	if strings.Contains(sf.Type, "int") {
-		prop = schema.NewIntegerProperty(sf.Name, sf.Required)
+		prop = schema2.NewIntegerProperty(sf.Name, sf.Required)
 	} else {
 		//Check for other types
 		switch sf.Type {
 		case "string":
-			prop = schema.NewStringProperty(sf.Name, sf.Required)
+			prop = schema2.NewStringProperty(sf.Name, sf.Required)
 		case "bool":
-			prop = schema.NewBoolProperty(sf.Name, sf.Required)
+			prop = schema2.NewBoolProperty(sf.Name, sf.Required)
 		case "Time":
-			prop = schema.NewTimeProperty(sf.Name, sf.Required)
+			prop = schema2.NewTimeProperty(sf.Name, sf.Required)
 		case "struct":
-			prop = schema.NewObjectProperty(sf.Name, sf.Required)
+			prop = schema2.NewObjectProperty(sf.Name, sf.Required)
 			for _, f := range sf.Fields {
 				if p, ok := g.generateProperty(ss, f); ok {
 					prop.AddProperty(p)
@@ -147,7 +147,7 @@ func (g *Gen) generateProperty(ss *schemaStruct, sf *schemaField) (*schema.Prope
 			return nil, false
 			//prop = schema.NewArrayProperty(sf.Name, sf.Required)
 		case "ref":
-			prop = schema.NewRefProperty(sf.Name, sf.Required)
+			prop = schema2.NewRefProperty(sf.Name, sf.Required)
 			prop.RefId = fmt.Sprintf("#/definitions/%s", sf.Name)
 			var ok bool
 			if prop.Ref, ok = g.findRefSchema(ss.Pkg, sf.Ref); !ok {
@@ -161,7 +161,7 @@ func (g *Gen) generateProperty(ss *schemaStruct, sf *schemaField) (*schema.Prope
 }
 
 // findRefSchema - поиск ссылки на схему
-func (g *Gen) findRefSchema(pkg string, ref string) (*schema.Schema, bool) {
+func (g *Gen) findRefSchema(pkg string, ref string) (*schema2.Schema, bool) {
 	if strings.Index(ref, ".") < 0 {
 		ref = fmt.Sprintf("%s.%s", pkg, ref)
 	}
@@ -183,7 +183,7 @@ func (g *Gen) saveMessageSchema(ss *schemaStruct) error {
 	for _, v := range eventSchema.Fields {
 		if v.EventData {
 			v.Ref = fmt.Sprintf("%s.%s", ss.Pkg, ss.Name)
-			v.Type = schema.TypeRef
+			v.Type = schema2.TypeRef
 			break
 		}
 	}
@@ -193,12 +193,12 @@ func (g *Gen) saveMessageSchema(ss *schemaStruct) error {
 		return fmt.Errorf("не удалось сгенерировать схему")
 	}
 
-	res.Schema = schema.DefaultSchema
+	res.Schema = schema2.DefaultSchema
 	res.Title = ss.Tags.Event
 	res.Description = ss.Tags.Description
 
 	for _, v := range res.Properties {
-		if v.Type != schema.TypeRef {
+		if v.Type != schema2.TypeRef {
 			continue
 		}
 

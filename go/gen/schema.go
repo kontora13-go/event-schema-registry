@@ -2,14 +2,14 @@ package gen
 
 import (
 	"fmt"
-	"github.com/kontora13-go/event-schema-registry/schemagen/schema"
+	"github.com/kontora13-go/event-schema-registry/schema"
 	"go/ast"
 	"log"
 	"reflect"
 	"strings"
 )
 
-var CommentPrefix = "schemagen:"
+var CommentPrefix = "schemagen1:"
 
 type schemaStruct struct {
 	Pkg    string

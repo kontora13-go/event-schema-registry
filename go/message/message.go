@@ -3,7 +3,7 @@ package message
 import "time"
 
 // EventMessage - основная структура event-сообщения
-// schemagen:
+// schemagen1:
 //
 //	#is_event_message
 type EventMessage struct {

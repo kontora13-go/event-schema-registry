@@ -7,7 +7,7 @@ const (
 )
 
 // CustomerUpdatedV1 - обновлены данные покупателя в CRM-системе
-// schemagen:
+// schemagen1:
 //
 //	#event: customer.updated.v1
 //	#description: обновлены данные покупателя
@@ -28,7 +28,7 @@ type CustomerUpdatedV1 struct {
 }
 
 // CustomerCreatedV1 - создан покупатель в CRM-системе
-// schemagen:
+// schemagen1:
 //
 //	#event: customer.created.v1
 //	#description: обновлены данные покупателя
@@ -49,7 +49,7 @@ type CustomerCreatedV1 struct {
 }
 
 // CustomerDeletedV1 - удален покупатель в CRM-системе
-// schemagen:
+// schemagen1:
 //
 //	#event: customer.deleted.v1
 //	#description: обновлены данные покупателя
