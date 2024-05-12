@@ -1,15 +1,15 @@
 package main
 
 import (
-	"github.com/kontora13-go/event-schema-registry/gen"
+	"github.com/kontora13-go/event-schema-registry/go/gen"
 	"log"
 	"os"
 )
 
 type Gen = gen.Gen
 
-func NewGen() *Gen {
-	return gen.NewGen()
+func NewGen(source string, target string) *Gen {
+	return gen.NewGen(source, target)
 }
 
 func main() {

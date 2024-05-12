@@ -2,7 +2,7 @@ package gen
 
 import (
 	"fmt"
-	"github.com/kontora13-go/event-schema-registry/schema"
+	"github.com/kontora13-go/event-schema-registry/go/schema"
 	"go/ast"
 	"log"
 	"reflect"
