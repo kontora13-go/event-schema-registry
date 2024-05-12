@@ -7,7 +7,6 @@ import (
 	"go/parser"
 	"go/token"
 	"log"
-	"os"
 	"strings"
 )
 
@@ -32,6 +31,10 @@ func NewGen(sourceDir string, destDir string) *Gen {
 
 func (g *Gen) Generate() error {
 	var err error
+
+	if err = cleanFiles(g.DestDir); err != nil {
+		return fmt.Errorf("ошибка удаления старых схем в '%s': %s", g.DestDir, err.Error())
+	}
 
 	var files []*SourceFile
 	if files, err = readFiles(g.SourceDir, g.SourceExt); err != nil {
@@ -96,48 +99,7 @@ func (g *Gen) parseStructFromFile(source *SourceFile) error {
 	return nil
 }
 
-func (g *Gen) genSchemaFromFile(source *SourceFile) error {
-	fset := token.NewFileSet()
-	node, err := parser.ParseFile(fset, "./message/"+source.SourcePath(), nil, parser.ParseComments)
-	if err != nil {
-		return err
-	}
-
-	pkgName := node.Name.Name
-
-	for _, gd := range node.Decls {
-		targetStruct, ok := parseStruct(gd, pkgName)
-		if !ok {
-			continue
-		}
-
-		if targetStruct.Tags == nil || targetStruct.Tags.Event == "" {
-			continue
-		}
-
-		if err = targetStruct.Parse(); err != nil {
-			return err
-		}
-
-		out, err := os.Create("../schema/" + source.DestPath(".json"))
-		if err != nil {
-			log.Fatal(err.Error())
-		}
-		defer out.Close()
-
-		j, err := json.Marshal(targetStruct.Schema)
-		if err != nil {
-			log.Fatal(err.Error())
-		}
-		fmt.Fprintln(out, string(j))
-
-	}
-
-	fmt.Println(node.Name.Name)
-
-	return nil
-}
-
+// generateSchema - генерация схемы по результатам парсинга
 func (g *Gen) generateSchema(ss *schemaStruct) (*schema.Schema, bool) {
 	if ss.Schema != nil {
 		return ss.Schema, true
@@ -159,6 +121,7 @@ func (g *Gen) generateSchema(ss *schemaStruct) (*schema.Schema, bool) {
 	return ss.Schema, true
 }
 
+// generateProperty - генерация поля схемы по результатам парсинга
 func (g *Gen) generateProperty(ss *schemaStruct, sf *schemaField) (*schema.Property, bool) {
 	// Check for integers
 	var prop *schema.Property
@@ -197,6 +160,7 @@ func (g *Gen) generateProperty(ss *schemaStruct, sf *schemaField) (*schema.Prope
 	return prop, true
 }
 
+// findRefSchema - поиск ссылки на схему
 func (g *Gen) findRefSchema(pkg string, ref string) (*schema.Schema, bool) {
 	if strings.Index(ref, ".") < 0 {
 		ref = fmt.Sprintf("%s.%s", pkg, ref)
@@ -209,7 +173,12 @@ func (g *Gen) findRefSchema(pkg string, ref string) (*schema.Schema, bool) {
 	return g.generateSchema(ss)
 }
 
+// saveMessageSchema - подготовка и сохранение схемы Event-message
 func (g *Gen) saveMessageSchema(ss *schemaStruct) error {
+	if ss.Tags == nil {
+		return fmt.Errorf("не определены параметры генерации 'genschema:' для %s.%s", ss.Pkg, ss.Name)
+	}
+
 	eventSchema := *g.MessageStruct
 	for _, v := range eventSchema.Fields {
 		if v.EventData {
@@ -225,6 +194,8 @@ func (g *Gen) saveMessageSchema(ss *schemaStruct) error {
 	}
 
 	res.Schema = schema.DefaultSchema
+	res.Title = ss.Tags.Event
+	res.Description = ss.Tags.Description
 
 	for _, v := range res.Properties {
 		if v.Type != schema.TypeRef {
@@ -232,24 +203,24 @@ func (g *Gen) saveMessageSchema(ss *schemaStruct) error {
 		}
 
 		res.Definitions[v.Name] = v.Ref
-
-		if v.Name == "event_data" {
-			res.Title = v.Ref.Title
-			res.Description = v.Ref.Description
-		}
 	}
 
-	out, err := os.Create(g.DestDir + "/" + ss.File.DestPath(".json"))
+	path := make([]string, 0)
+	path = append(path, g.DestDir)
+	for _, v := range ss.File.Path {
+		path = append(path, v)
+	}
+	e := strings.Split(ss.Tags.Event, ".")
+	file := e[len(e)-1] + ".json"
+	for i := 0; i < len(e)-1; i++ {
+		path = append(path, e[i])
+	}
+
+	j, err := json.MarshalIndent(&res, "", "  ")
 	if err != nil {
 		log.Fatal(err.Error())
 	}
-	defer out.Close()
-
-	j, err := json.Marshal(&res)
-	if err != nil {
-		log.Fatal(err.Error())
-	}
-	_, err = fmt.Fprintln(out, string(j))
+	err = saveFile(strings.Join(path, "/"), file, j)
 
 	return err
 }

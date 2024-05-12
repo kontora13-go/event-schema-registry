@@ -1,1 +1,0 @@
-{"$schema":"https://json-schema.org/draft/2020-12/schema","title":"","type":"object","definitions":null,"properties":[{"type":"string"},{"type":"string"},{"type":"string"},{"type":"string"},{"type":"time"},{"type":"string"}],"required":["trace_id","event_id","event_name","event_version","event_time","producer"]}

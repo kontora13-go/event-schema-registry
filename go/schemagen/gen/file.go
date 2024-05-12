@@ -1,6 +1,7 @@
 package gen
 
 import (
+	"fmt"
 	"io/fs"
 	"os"
 	"strings"
@@ -26,6 +27,10 @@ func NewSourceFile(path string, ext string) *SourceFile {
 	return f
 }
 
+func cleanFiles(dir string) error {
+	return os.RemoveAll(dir)
+}
+
 func readFiles(dir string, ext string) ([]*SourceFile, error) {
 	fileSystem := os.DirFS(dir)
 
@@ -46,6 +51,24 @@ func readFiles(dir string, ext string) ([]*SourceFile, error) {
 	})
 
 	return files, err
+}
+
+func saveFile(dir, file string, data []byte) error {
+	err := os.MkdirAll(dir, 0777)
+	if err != nil {
+		return err
+	}
+
+	out, err := os.Create(dir + "/" + file)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		_ = out.Close()
+	}()
+
+	_, err = fmt.Fprintln(out, string(data))
+	return err
 }
 
 // SourcePath формирует строку пути к source file
