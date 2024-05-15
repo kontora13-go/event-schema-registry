@@ -3,7 +3,6 @@ package main
 import (
 	"github.com/kontora13-go/event-schema-registry/go/gen"
 	"log"
-	"os"
 )
 
 type Gen = gen.Gen
@@ -13,8 +12,11 @@ func NewGen(source string, target string) *Gen {
 }
 
 func main() {
-	source := os.Args[1]
-	target := os.Args[2]
+	//source := os.Args[1]
+	//target := os.Args[2]
+
+	source := "./message"
+	target := "../schema"
 
 	log.Printf("%s -> %s", source, target)
 	if source == "" || target == "" {

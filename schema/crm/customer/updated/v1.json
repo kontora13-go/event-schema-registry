@@ -16,6 +16,9 @@
           "properties": {
             "email": {
               "type": "string"
+            },
+            "phone": {
+              "type": "integer"
             }
           },
           "type": "object"

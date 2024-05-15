@@ -9,7 +9,7 @@ import (
 	"strings"
 )
 
-var CommentPrefix = "schemagen1:"
+var CommentPrefix = "schemagen:"
 
 type schemaStruct struct {
 	Pkg    string
@@ -144,23 +144,33 @@ func parseField(field *ast.Field) (*schemaField, bool) {
 
 	sf := newSchemaField()
 	if field.Tag != nil {
-		// FIXME: первый параметр - всегда имя поля, остальные - теги
 		tag := reflect.StructTag(field.Tag.Value[1 : len(field.Tag.Value)-1])
-		tagVal := tag.Get("schema")
-		fmt.Println("schema:", tagVal)
-		tagParams := strings.Split(tagVal, ",")
+		tagVal := tag.Get("json")
+		if tagVal != "" {
+			fmt.Println("json:", tagVal)
+			tagParams := strings.Split(tagVal, ",")
+			if len(tagParams) > 0 {
+				sf.Name = tagParams[0]
+			}
+		}
 
-		for _, param := range tagParams {
-			switch param {
-			case "required":
-				sf.Required = true
-			case "event_data":
-				sf.EventData = true
-			case "-":
-				success = false
-				break
-			default:
-				sf.Name = param
+		tagVal = tag.Get("schema")
+		if tagVal != "" {
+			fmt.Println("schema:", tagVal)
+			tagParams := strings.Split(tagVal, ",")
+
+			for _, param := range tagParams {
+				switch param {
+				case "required":
+					sf.Required = true
+				case "event_data":
+					sf.EventData = true
+				case "-":
+					success = false
+					break
+				default:
+					sf.Name = param
+				}
 			}
 		}
 	}

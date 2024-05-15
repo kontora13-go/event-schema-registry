@@ -131,7 +131,7 @@ func (p *Property) mappingObject() map[string]any {
 }
 
 func (p *Property) AddProperty(prop *Property) {
-	p.Properties[p.Name] = prop
+	p.Properties[prop.Name] = prop
 }
 
 /*
